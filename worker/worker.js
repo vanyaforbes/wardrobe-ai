@@ -1,6 +1,6 @@
 // Cloudflare Worker: a tiny proxy between the Wardrobe AI site and the Gemini API.
 // The API key lives in the Worker secret GEMINI_API_KEY, so it never appears in the site's code.
-// Tried in order: if Google retires a model (404), the next one is used.
+// Tried in order: if a model is retired (404) or overloaded (429/5xx), the next one is used.
 const MODELS = ["gemini-flash-latest", "gemini-3-flash", "gemini-2.5-flash", "gemini-flash-lite-latest"];
 const ALLOWED = ["https://vanyaforbes.github.io"];
 
@@ -38,7 +38,7 @@ export default {
         headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
         body: JSON.stringify({ contents: [{ role: "user", parts }], generationConfig: { responseMimeType: "application/json", temperature: 0.7 } }),
       });
-      if (r.status !== 404) break;
+      if (r.ok || ![404, 429, 500, 503].includes(r.status)) break;
     }
     if (r.status === 429) return new Response(JSON.stringify({ error: "rate_limited" }), { status: 429, headers });
     if (!r.ok) return new Response(JSON.stringify({ error: "upstream", status: r.status }), { status: 502, headers });
