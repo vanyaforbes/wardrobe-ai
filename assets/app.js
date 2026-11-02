@@ -364,7 +364,18 @@ function buySuggestion(o) {
   const st = STYLES.slice().sort((a, b) => Math.abs(a.f - w[0]) - Math.abs(b.f - w[0]))[0];
   return { cat, color, nounKey, style: o.style || st.id, missing: !!missingCat };
 }
-const buyQuery = (b) => `${t("color." + b.color)} ${t("buy." + b.nounKey)}`;
+// Russian adjectives agree with the noun: "бежевая футболка", "чёрные джинсы".
+const RU_GENDER = { "buy.shirt": "f", "buy.tee": "f", "buy.jacket": "f", "buy.coat": "n", "buy.trousers": "p", "buy.jeans": "p", "buy.boots": "p", "buy.sneakers": "p",
+  "noun.bottoms": "p", "noun.jackets": "f", "noun.shoes": "f", "noun.bags": "f", "noun.dress": "n" };
+function colorWith(colorId, nounKey) {
+  const c = colorId && COL[colorId] ? t("color." + colorId) : "", n = t(nounKey);
+  if (!c) return n;
+  if (L() !== "ru") return `${c} ${n}`;
+  const g = RU_GENDER[nounKey] || "m";
+  const adj = g === "m" ? c : c.replace(/(ый|ой)$/, { f: "ая", n: "ое", p: "ые" }[g]).replace(/ий$/, { f: "яя", n: "ее", p: "ие" }[g]);
+  return `${adj} ${n}`;
+}
+const buyQuery = (b) => colorWith(b.color, "buy." + b.nounKey);
 
 /* =========================================================================
    Photos: compress on the device
@@ -1118,7 +1129,7 @@ Return only JSON: {"category":"","color":"","season":"","style":"","occasion":""
 function parseRequest(text) {
   const s = text.toLowerCase();
   const o = { occasion: "everyday", season: currentSeason(), weather: SEASON_WEATHER[currentSeason()], style: "", pin: null };
-  const occRules = [[/universit|college|class|school|lecture|study|универ|учеб|учёб|школ|пар[аыу]/, "study"], [/work|office|interview|meeting|работ|офис|собеседован/, "work"], [/date|romantic|dinner|свидан|ужин/, "date"], [/party|club|birthday|celebrat|вечерин|клуб|день рожд/, "party"], [/sport|gym|workout|training|run|спорт|зал|трениров/, "sport"]];
+  const occRules = [[/universit|\buni\b|college|class|school|lecture|study|универ|учеб|учёб|школ|пар[аыу]/, "study"], [/work|office|interview|meeting|работ|офис|собеседован/, "work"], [/date|romantic|dinner|свидан|ужин/, "date"], [/party|club|birthday|celebrat|вечерин|клуб|день рожд/, "party"], [/sport|gym|workout|training|run|спорт|зал|трениров/, "sport"]];
   for (const [re, oc] of occRules) if (re.test(s)) { o.occasion = oc; break; }
   if (/cold|freez|winter|snow|холод|мороз|зим|снег/.test(s)) { o.weather = "cold"; if (/winter|snow|зим|снег/.test(s)) o.season = "winter"; }
   else if (/cool|rain|wind|chilly|прохлад|дожд|ветер/.test(s)) o.weather = "cool";
@@ -1151,7 +1162,9 @@ async function askStylist(text) {
   if (state.sample) {
     try {
       const history = state.chat.filter((m) => !m.loading).slice(-8).map((m) => `${m.role === "user" ? "User" : "Stylist"}: ${m.text || (m.textKey ? t(m.textKey, m.vars || {}) : "")}`).join("\n");
-      const prompt = `You are the personal AI stylist of the Wardrobe AI app (users in Almaty, Kazakhstan). Reply in ${L() === "ru" ? "Russian" : "English"}, warmly and briefly (2-4 sentences).
+      const prompt = `You are the personal AI stylist of the Wardrobe AI app (users in Almaty, Kazakhstan). Reply in ${L() === "ru" ? "Russian" : "English"}, warmly and naturally, like a real stylist in a chat (usually 2-6 sentences).
+You can talk freely: answer general fashion questions, give advice on colours, fit, trends, what to buy, small talk. Outfits are optional: return "outfits": [] when the message is not a request for a look.
+If the wardrobe is empty or lacks pieces, still help: describe what to wear in words and suggest store_searches; mention once, gently, that adding their own clothes lets you build looks from them.
 Rules:
 - OWNED items are the user's wardrobe; STORE products were added manually to the catalog by the user (price and sizes "as entered", not live). Clearly distinguish them: never present a store product as owned.
 - Never invent items or products. Refer to them only by id. You do not have live store inventory or prices; never claim stock availability.
@@ -1185,13 +1198,17 @@ Return only JSON: {"reply":"","outfits":[{"title":"","item_ids":[],"product_ids"
   pending.loading = false;
   const pinIt = o.pin ? itemById(o.pin) : null;
   if (storeIntent) {
-    const q = pinIt ? `${colorName(pinIt.color)} ${nounOf(pinIt.category)}`.trim() : [color ? colorName(color) : "", cat ? t("noun." + (cat === "dresses" ? "dress" : cat)) : "", o.style ? STYLE[o.style].name[L()] : ""].filter(Boolean).join(" ") || buyQuery(buySuggestion(o));
+    const q = pinIt ? colorWith(pinIt.color, "noun." + catKey(pinIt.category)) : [cat ? colorWith(color ? color.id : "", "noun." + (cat === "dresses" ? "dress" : cat)) : color ? colorName(color.id) : "", o.style ? STYLE[o.style].name[L()] : ""].filter(Boolean).join(" ") || buyQuery(buySuggestion(o));
     const matchQ = pinIt ? pinIt : null;
-    const pmatch = state.products.filter((p) => (!cat || catKey(p.category) === (cat === "dresses" ? "tops" : cat)) && (!color || p.color === color) && stores.includes(p.retailer)).slice(0, 2);
+    const pmatch = state.products.filter((p) => (!cat || catKey(p.category) === (cat === "dresses" ? "tops" : cat)) && (!color || p.color === color.id) && stores.includes(p.retailer)).slice(0, 2);
     pending.textKey = matchQ ? "rules.storesFor" : "rules.stores";
     pending.vars = { item: matchQ ? itemName(matchQ) : q };
     pending.searches = stores.map((id) => ({ retailer: id, query: q }));
     if (pmatch.length && !ruled.error) pending.looks = [{ ...ruled.looks[0], productIds: pmatch.map((p) => p.id), titleKey: "look.withStore" }];
+  } else if (!hasItems()) {
+    const q = buyQuery(buySuggestion(o));
+    pending.textKey = "rules.empty"; pending.vars = { occ: t("occ." + o.occasion), weather: t("weather." + o.weather).toLowerCase() };
+    pending.searches = RETAILERS.map((r) => ({ retailer: r.id, query: q }));
   } else if (ruled.error) { pending.textKey = "rules.missing"; pending.vars = { msg: ruled.error }; }
   else {
     pending.looks = ruled.looks.slice(0, count);
