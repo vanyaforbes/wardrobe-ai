@@ -554,9 +554,29 @@ async function initStorage() {
   } catch (e) { clearTimeout(timer); fallback(); }
 }
 
+// Outside Claude the stylist can talk through our own AI proxy (a Cloudflare Worker with a Gemini key).
+// Leave AI_URL empty to use the built-in styling rules only.
+const AI_URL = "";
+const blobToBase64 = (blob) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1] || ""); r.onerror = rej; r.readAsDataURL(blob); });
+function proxySample() {
+  return {
+    limits: async () => ({ images: true }),
+    json: async (prompt, o = {}) => {
+      const images = [];
+      for (const b of o.images || []) images.push({ mime: b.type || "image/jpeg", data: await blobToBase64(b) });
+      const r = await fetch(AI_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt, images }) });
+      if (!r.ok) { const e = new Error("ai"); e.code = r.status === 429 ? "rate_limited" : "upstream"; throw e; }
+      return r.json();
+    },
+  };
+}
+
 async function initAI() {
   try {
-    if (!window.claude || !window.claude.use) return;
+    if (!window.claude || !window.claude.use) {
+      if (AI_URL) { state.sample = proxySample(); state.canSeeImages = true; render(); }
+      return;
+    }
     const s = await window.claude.use("sample");
     if (!s) return;
     state.sample = s;
