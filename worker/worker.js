@@ -1,7 +1,9 @@
 // Cloudflare Worker: a tiny proxy between the Wardrobe AI site and the Gemini API.
 // The API key lives in the Worker secret GEMINI_API_KEY, so it never appears in the site's code.
-// Tried in order: if a model is retired (404) or overloaded (429/5xx), the next one is used.
-const MODELS = ["gemini-flash-latest", "gemini-3-flash", "gemini-2.5-flash", "gemini-flash-lite-latest"];
+// Tried in order: if a model is retired (404), overloaded or too slow, the next one is used (v3).
+const MODELS = ["gemini-flash-latest", "gemini-flash-lite-latest", "gemini-2.5-flash", "gemini-2.5-flash-lite"];
+const PER_TRY_MS = 20000;   // give up on a slow model after 20 s
+const TOTAL_MS = 80000;     // stay under Cloudflare's ~100 s limit
 const ALLOWED = ["https://vanyaforbes.github.io"];
 
 function cors(origin) {
@@ -31,14 +33,28 @@ export default {
     for (const img of images) {
       if (img && typeof img.data === "string" && img.data.length < 1_500_000) parts.push({ inline_data: { mime_type: img.mime || "image/jpeg", data: img.data } });
     }
-    let r;
+    const started = Date.now();
+    const call = async (model, fast) => {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), PER_TRY_MS);
+      const generationConfig = { responseMimeType: "application/json", temperature: 0.7, maxOutputTokens: 2048 };
+      if (fast) generationConfig.thinkingConfig = { thinkingBudget: 0 }; // no long "thinking": answer quickly
+      try {
+        return await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+          method: "POST", signal: ctrl.signal,
+          headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+          body: JSON.stringify({ contents: [{ role: "user", parts }], generationConfig }),
+        });
+      } catch (e) {
+        return new Response(null, { status: 504 }); // timed out or network error
+      } finally { clearTimeout(timer); }
+    };
+    let r = new Response(null, { status: 503 });
     for (const model of MODELS) {
-      r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
-        body: JSON.stringify({ contents: [{ role: "user", parts }], generationConfig: { responseMimeType: "application/json", temperature: 0.7 } }),
-      });
-      if (r.ok || ![404, 429, 500, 503].includes(r.status)) break;
+      if (Date.now() - started > TOTAL_MS - PER_TRY_MS) break;
+      r = await call(model, true);
+      if (r.status === 400) r = await call(model, false); // model doesn't accept the thinking setting
+      if (r.ok || r.status === 401 || r.status === 403) break; // success, or a key problem no other model will fix
     }
     if (r.status === 429) return new Response(JSON.stringify({ error: "rate_limited" }), { status: 429, headers });
     if (!r.ok) return new Response(JSON.stringify({ error: "upstream", status: r.status }), { status: 502, headers });
