@@ -168,7 +168,7 @@ async function initStorage() {
    AI: Claude (inside claude.ai) or our own proxy (GitHub Pages), else rules
    ========================================================================= */
 // Cloudflare Worker URL that forwards to Gemini. Empty = built-in styling rules only.
-const AI_URL = "";
+const AI_URL = "https://wardrobe-ai.azizabden24.workers.dev/";
 const blobToBase64 = (blob) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1] || ""); r.onerror = rej; r.readAsDataURL(blob); });
 function proxySample() {
   return {
