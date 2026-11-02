@@ -1,6 +1,7 @@
 // Cloudflare Worker: a tiny proxy between the Wardrobe AI site and the Gemini API.
 // The API key lives in the Worker secret GEMINI_API_KEY, so it never appears in the site's code.
-const MODEL = "gemini-2.5-flash";
+// Tried in order: if Google retires a model (404), the next one is used.
+const MODELS = ["gemini-flash-latest", "gemini-3-flash", "gemini-2.5-flash", "gemini-flash-lite-latest"];
 const ALLOWED = ["https://vanyaforbes.github.io"];
 
 function cors(origin) {
@@ -30,11 +31,15 @@ export default {
     for (const img of images) {
       if (img && typeof img.data === "string" && img.data.length < 1_500_000) parts.push({ inline_data: { mime_type: img.mime || "image/jpeg", data: img.data } });
     }
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
-      body: JSON.stringify({ contents: [{ role: "user", parts }], generationConfig: { responseMimeType: "application/json", temperature: 0.7 } }),
-    });
+    let r;
+    for (const model of MODELS) {
+      r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+        body: JSON.stringify({ contents: [{ role: "user", parts }], generationConfig: { responseMimeType: "application/json", temperature: 0.7 } }),
+      });
+      if (r.status !== 404) break;
+    }
     if (r.status === 429) return new Response(JSON.stringify({ error: "rate_limited" }), { status: 429, headers });
     if (!r.ok) return new Response(JSON.stringify({ error: "upstream", status: r.status }), { status: 502, headers });
     const data = await r.json();
