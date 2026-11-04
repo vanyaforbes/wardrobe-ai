@@ -130,7 +130,7 @@ WA.I18N = {
     "home.step3": "Ask the stylist", "home.step3t": "Get outfits made from your own clothes.",
     "home.recommended": "Recommended for today",
     "home.ctaTitle": "Not sure what to wear?",
-    "home.ctaText": "Tell the stylist where you're going. It uses your clothes, your styles and the weather.",
+    "home.ctaText": "Tell the stylist where you're going and what the weather is like. It uses your clothes and your styles.",
     "home.ctaPlaceholder": "What should I wear today?",
     "home.yourStyles": "Your styles", "home.recent": "Recently added",
     "home.shopTitle": "Shops in Almaty",
@@ -220,7 +220,7 @@ WA.I18N = {
     "prof.ai": "AI stylist", "prof.aiClaude": "Connected", "prof.aiProxy": "Connected through the server",
     "prof.aiRules": "Not connected yet. Built-in rules are used.",
     "prof.stores": "Stores", "prof.storesText": "Links to official sites plus your own catalog. No live prices or stock.",
-    "prof.auth": "Account", "prof.authText": "No sign-in yet. Your data stays on this device.",
+    "prof.auth": "Account", "prof.authText": "No sign-in yet. Your wardrobe is saved on this device. Messages to the AI stylist, and photos you send for analysis, go to Google Gemini.",
 
     /* items */
     "item.new": "New item", "item.edit": "Edit item", "item.recognising": "Recognising the item…",
@@ -343,7 +343,7 @@ WA.I18N = {
     "home.step3": "Спросите стилиста", "home.step3t": "Образы из вашей собственной одежды.",
     "home.recommended": "Рекомендуем на сегодня",
     "home.ctaTitle": "Не знаете, что надеть?",
-    "home.ctaText": "Расскажите стилисту, куда вы идёте. Он учтёт ваши вещи, стили и погоду.",
+    "home.ctaText": "Расскажите стилисту, куда вы идёте и какая погода. Он учтёт ваши вещи и стили.",
     "home.ctaPlaceholder": "Что мне надеть сегодня?",
     "home.yourStyles": "Ваши стили", "home.recent": "Недавно добавленные",
     "home.shopTitle": "Магазины Алматы",
@@ -426,7 +426,7 @@ WA.I18N = {
     "prof.ai": "AI-стилист", "prof.aiClaude": "Подключён", "prof.aiProxy": "Подключён через сервер",
     "prof.aiRules": "Пока не подключён. Работают встроенные правила.",
     "prof.stores": "Магазины", "prof.storesText": "Ссылки на официальные сайты и ваш собственный каталог. Цен и наличия в реальном времени нет.",
-    "prof.auth": "Аккаунт", "prof.authText": "Входа пока нет. Данные хранятся на этом устройстве.",
+    "prof.auth": "Аккаунт", "prof.authText": "Входа пока нет. Гардероб хранится на этом устройстве. Сообщения AI-стилисту и фото, которые вы отправляете на анализ, уходят в Google Gemini.",
 
     "item.new": "Новая вещь", "item.edit": "Изменить вещь", "item.recognising": "Распознаём вещь…",
     "item.aiFill": "Заполнить по фото", "item.buildWith": "Собрать образ с ней", "item.delete": "Удалить вещь",

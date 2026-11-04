@@ -1129,14 +1129,15 @@ Return only JSON: {"category":"","color":"","season":"","style":"","occasion":""
 function parseRequest(text) {
   const s = text.toLowerCase();
   const o = { occasion: "everyday", season: currentSeason(), weather: SEASON_WEATHER[currentSeason()], style: "", pin: null };
-  const occRules = [[/universit|\buni\b|college|class|school|lecture|study|универ|учеб|учёб|школ|пар[аыу]/, "study"], [/work|office|interview|meeting|работ|офис|собеседован/, "work"], [/date|romantic|dinner|свидан|ужин/, "date"], [/party|club|birthday|celebrat|вечерин|клуб|день рожд/, "party"], [/sport|gym|workout|training|run|спорт|зал|трениров/, "sport"]];
+  const occRules = [[/\b(?:universit\w*|uni|college|class|classes|school|lectures?|study|studying)\b|универ|учеб|учёб|школ|(?:^|[^а-яё])пар[аыу](?![а-яё])/, "study"], [/\b(?:sport\w*|gym|workouts?|training|run|running|jog\w*)\b|спорт|(?:^|[^а-яё])зал(?![а-яё])|в зал|трениров/, "sport"], [/\b(?:work|working|office|interview|meetings?)\b|работ|офис|собеседован/, "work"], [/\b(?:date|dating|romantic|dinner)\b|свидан|ужин/, "date"], [/\b(?:party|parties|club|birthday|celebrat\w*)\b|вечерин|клуб|день рожд/, "party"]];
   for (const [re, oc] of occRules) if (re.test(s)) { o.occasion = oc; break; }
-  if (/cold|freez|winter|snow|холод|мороз|зим|снег/.test(s)) { o.weather = "cold"; if (/winter|snow|зим|снег/.test(s)) o.season = "winter"; }
-  else if (/cool|rain|wind|chilly|прохлад|дожд|ветер/.test(s)) o.weather = "cool";
-  else if (/hot|summer|heat|жар|лет|зной/.test(s)) { o.weather = "hot"; o.season = "summer"; }
-  else if (/warm|spring|тепл|весн/.test(s)) o.weather = "warm";
+  if (/\b(?:cold|freez\w*|winter|snow\w*)\b|холод|мороз|зим|снег/.test(s)) { o.weather = "cold"; if (/\b(?:winter|snow\w*)\b|зим|снег/.test(s)) o.season = "winter"; }
+  else if (/\b(?:cool|rain\w*|wind\w*|chilly)\b|прохлад|дожд|ветер/.test(s)) o.weather = "cool";
+  else if (/\b(?:hot|summer|heat\w*)\b|жар|(?:^|[^а-яё])лет[оаме]|летн|зной/.test(s)) { o.weather = "hot"; o.season = "summer"; }
+  else if (/\b(?:warm\w*|spring)\b|тепл|весн/.test(s)) o.weather = "warm";
   for (const st of STYLES) if ([st.name.en, st.name.ru, st.id.replace("_", " ")].some((n) => s.includes(n.toLowerCase()))) { o.style = st.id; break; }
-  const catRules = [[/dress|плать/, "dresses"], [/trouser|pants|slacks|jean|denim|брюк|джинс|штан/, "bottoms"], [/jacket|coat|blazer|bomber|parka|куртк|пальто|пиджак|бомбер/, "jackets"], [/sneaker|trainer|boot|shoe|loafer|кроссов|кед|ботин|туфл|обув|лофер/, "shoes"], [/bag|backpack|сумк|рюкзак/, "bags"], [/t-shirt|tee|shirt|sweater|jumper|turtleneck|hoodie|top|blouse|футболк|рубашк|свитер|джемпер|водолазк|худи|топ|блуз/, "tops"], [/scarf|cap|hat|belt|шарф|кепк|шапк|ремень/, "accessories"]];
+  // English words need word boundaries ("what" must not match "hat"); Russian stems match inside words.
+  const catRules = [[/\b(?:dress(?:es)?)\b|плать/, "dresses"], [/\b(?:trousers?|pants|slacks|jeans?|denim)\b|брюк|джинс|штан/, "bottoms"], [/\b(?:jackets?|coats?|blazers?|bombers?|parkas?)\b|куртк|пальто|пиджак|бомбер/, "jackets"], [/\b(?:sneakers?|trainers?|boots?|shoes?|loafers?)\b|кроссов|кед|ботин|туфл|обув|лофер/, "shoes"], [/\b(?:bags?|backpacks?)\b|сумк|рюкзак/, "bags"], [/\b(?:t-shirts?|tees?|shirts?|sweaters?|jumpers?|turtlenecks?|hoodies?|tops?|blouses?)\b|футболк|рубашк|свитер|джемпер|водолазк|худи|топ|блуз/, "tops"], [/\b(?:scarf|scarves|caps?|hats?|belts?)\b|шарф|кепк|шапк|ремень|ремн/, "accessories"]];
   let cat = null; for (const [re, c] of catRules) if (re.test(s)) { cat = c; break; }
   const sn = s.replace(/ё/g, "е");
   const ruStem = (id) => { const r = WA.I18N.ru["color." + id].toLowerCase().replace(/ё/g, "е"); return r.length > 5 ? r.slice(0, -2) : r; };
